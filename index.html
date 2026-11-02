@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>El monstruito hambriento</title>
+<meta name="description" content="Juego para aprender las tablas de multiplicar dándole de comer a un monstruito.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #fdf7ec;
+    --fondo-2: #f6ead3;
+    --tinta: #3b2f4a;
+    --tinta-suave: #7a6c86;
+    --verde: #4dbb7c;
+    --verde-osc: #2f8f5a;
+    --rojo: #e8706a;
+    --amarillo: #ffc93c;
+    --panza-baja: #ef8a5d;
+    --tarjeta: #ffffff;
+    --sombra: 0 6px 0 rgba(59, 47, 74, .12);
+    --radio: 22px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--tinta);
+    font-family: 'Lexend', 'Trebuchet MS', system-ui, sans-serif;
+    letter-spacing: .02em;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; }
+  .pantalla {
+    height: 100dvh;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: max(10px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Botones generales */
+  .boton {
+    background: var(--verde);
+    color: #fff;
+    font-weight: 800;
+    font-size: 26px;
+    padding: 14px 34px;
+    border-radius: 999px;
+    box-shadow: 0 6px 0 var(--verde-osc);
+    transition: transform .08s;
+  }
+  .boton:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--verde-osc); }
+  .boton.secundario { background: var(--tarjeta); color: var(--tinta); box-shadow: var(--sombra); font-size: 20px; padding: 12px 24px; }
+  .icono {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--tarjeta); box-shadow: var(--sombra);
+    font-size: 24px; display: grid; place-items: center; flex: none;
+  }
+
+  /* Monstruo */
+  .monstruo { position: relative; height: min(36vh, 330px); aspect-ratio: 362 / 460; container-type: size; }
+  .monstruo .rebote { position: absolute; inset: 0; animation: rebote 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+  .monstruo .accion { position: absolute; inset: 0; transform-origin: 50% 100%; }
+  .monstruo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  .monstruo .sombra {
+    position: absolute; left: 18%; right: 18%; bottom: -2%; height: 7%;
+    background: radial-gradient(closest-side, rgba(90, 70, 40, .25), transparent);
+  }
+  .sombrero {
+    position: absolute; left: 50%; top: 0;
+    font-size: 22cqh; line-height: 1;
+    transform: translate(-50%, -48%);
+    pointer-events: none;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,.15));
+  }
+  .monstruo[data-pose="panzon"] .sombrero { top: 4%; }
+  .monstruo[data-pose="flaquito"] .sombrero { top: 5%; transform: translate(-50%, -48%) rotate(-12deg); }
+  @keyframes rebote { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.03, .97); } }
+  .accion.comer { animation: comer .5s ease-in-out; }
+  @keyframes comer { 0%,100% { transform: scale(1); } 30% { transform: scale(1.12, .88); } 60% { transform: scale(.94, 1.08); } }
+  .accion.saltar { animation: saltar .7s cubic-bezier(.3,.7,.4,1); }
+  @keyframes saltar { 0%,100% { transform: translateY(0) scale(1); } 15% { transform: translateY(0) scale(1.1, .9); } 45% { transform: translateY(-22%) scale(.95, 1.05); } 80% { transform: translateY(0) scale(1.08, .92); } }
+  .accion.sacudir { animation: sacudir .6s ease-in-out; }
+  @keyframes sacudir { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-8deg); } 40% { transform: rotate(7deg); } 60% { transform: rotate(-5deg); } 80% { transform: rotate(3deg); } }
+  .accion.reir { animation: reir .6s ease-in-out; }
+  @keyframes reir { 0%,100% { transform: scale(1); } 25%,75% { transform: scale(1.05, .95) rotate(-3deg); } 50% { transform: scale(.97, 1.03) rotate(3deg); } }
+
+  .globo {
+    position: absolute; left: 50%; bottom: 100%; margin-bottom: 8px;
+    background: var(--tarjeta); border-radius: 20px;
+    padding: 8px 16px; font-weight: 800; font-size: 26px; white-space: nowrap;
+    box-shadow: var(--sombra);
+    opacity: 0; transform: translateX(-50%) scale(.6); transform-origin: 50% 100%;
+    transition: opacity .15s, transform .2s cubic-bezier(.3,1.6,.6,1);
+    pointer-events: none; z-index: 3;
+  }
+  .globo::after {
+    content: ''; position: absolute; left: 50%; margin-left: -10px; bottom: -10px;
+    border: 10px solid transparent; border-top-color: var(--tarjeta); border-bottom: 0;
+  }
+  .globo.ver { opacity: 1; transform: translateX(-50%) scale(1); }
+
+  /* Pantalla de inicio */
+  #inicio { justify-content: space-evenly; text-align: center; overflow-y: auto; }
+  h1 { margin: 0; font-size: clamp(28px, 7vw, 44px); line-height: 1.1; }
+  h1 small { display: block; font-size: .5em; color: var(--tinta-suave); font-weight: 600; margin-top: 4px; }
+  .campo { display: flex; flex-direction: column; gap: 6px; align-items: center; font-weight: 600; color: var(--tinta-suave); }
+  .campo input {
+    font: inherit; font-size: 28px; font-weight: 800; text-align: center; color: var(--tinta);
+    width: min(280px, 80vw); padding: 8px 14px; border-radius: 16px;
+    border: 3px solid var(--fondo-2); background: var(--tarjeta);
+  }
+  .campo input:focus { outline: none; border-color: var(--verde); }
+  .modos { display: flex; gap: 10px; justify-content: center; }
+  .modos button { background: var(--fondo-2); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 18px; }
+  .modos button[aria-pressed="true"] { background: var(--tinta); color: #fff; }
+  .tablas { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 360px; margin: 10px auto 0; }
+  .tablas button {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--tarjeta); box-shadow: var(--sombra);
+    font-size: 24px; font-weight: 800;
+  }
+  .tablas button[aria-pressed="true"] { background: var(--amarillo); }
+  .nota { color: var(--tinta-suave); font-size: 17px; margin: 8px 0 0; }
+  .fila { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; align-items: center; }
+  .version { color: var(--tinta-suave); font-size: 12px; opacity: .7; }
+
+  /* Juego */
+  .barra-arriba { width: 100%; display: flex; align-items: center; gap: 10px; }
+  .panza { flex: 1; display: flex; align-items: center; gap: 8px; }
+  .panza-medidor {
+    flex: 1; height: 22px; border-radius: 999px; background: var(--fondo-2);
+    overflow: hidden; box-shadow: inset 0 2px 0 rgba(0,0,0,.06);
+  }
+  .panza-relleno {
+    height: 100%; width: 50%; border-radius: 999px;
+    background: var(--verde);
+    transition: width .5s cubic-bezier(.3,1.4,.6,1), background-color .4s;
+  }
+  .panza-relleno.baja { background: var(--panza-baja); }
+  .monedas {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--tarjeta); border-radius: 999px; padding: 8px 14px;
+    font-weight: 800; font-size: 20px; box-shadow: var(--sombra); position: relative;
+  }
+  .monedas.brillo { animation: brillo .4s; }
+  @keyframes brillo { 50% { transform: scale(1.18); } }
+
+  .cuenta {
+    margin-top: 10px;
+    background: var(--tarjeta); border-radius: var(--radio); box-shadow: var(--sombra);
+    padding: 6px 28px 4px; min-width: min(360px, 100%);
+    text-align: center; position: relative;
+    font-size: clamp(48px, 13vw, 84px); font-weight: 800; line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+  .cuenta .resultado { color: var(--tinta-suave); }
+  .cuenta.bien .resultado { color: var(--verde-osc); }
+  .cuenta .oir { position: absolute; right: 8px; top: 8px; font-size: 18px; opacity: .45; background: none; padding: 4px; }
+  .puntos { display: flex; gap: 7px; margin-top: 10px; }
+  .puntos span { width: 12px; height: 12px; border-radius: 50%; background: var(--fondo-2); transition: background .3s, transform .3s; }
+  .puntos span.hecho { background: var(--verde); }
+  .puntos span.repaso { background: var(--amarillo); }
+  .puntos span.actual { transform: scale(1.45); background: var(--tinta-suave); }
+
+  .escenario { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; padding: 50px 0 12px; }
+  .escenario .monstruo { height: min(44vh, 400px, 100%); }
+  .comidas { display: flex; gap: clamp(10px, 4vw, 26px); justify-content: center; width: 100%; padding-bottom: 6px; }
+  .comida {
+    width: clamp(86px, 24vw, 128px); aspect-ratio: 1; border-radius: 50%;
+    background: var(--tarjeta); box-shadow: 0 7px 0 rgba(59,47,74,.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; transition: transform .12s, opacity .3s;
+  }
+  .comida:active { transform: scale(.94); }
+  .comida .bocado { font-size: clamp(22px, 6vw, 32px); line-height: 1; }
+  .comida .numero { font-size: clamp(34px, 10vw, 52px); font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .comida.mal { opacity: .35; transform: scale(.88); pointer-events: none; }
+  .comida.mal::after { content: '✗'; position: absolute; top: 2px; right: 8px; font-size: 26px; color: var(--rojo); font-weight: 800; }
+  .comida.usada { visibility: hidden; }
+  .volando {
+    position: fixed; z-index: 20; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center;
+    font-weight: 800; font-size: 34px; line-height: 1;
+  }
+  .volando .bocado { font-size: 40px; }
+  .flotante {
+    position: fixed; z-index: 21; pointer-events: none;
+    font-weight: 800; font-size: 26px; color: var(--verde-osc);
+    animation: flotar 1s ease-out forwards;
+  }
+  @keyframes flotar { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-60px); } }
+
+  /* Fin de ronda */
+  #fin { justify-content: center; gap: 18px; text-align: center; }
+  .estrellas { font-size: 64px; letter-spacing: 8px; }
+  .estrellas span { display: inline-block; animation: aparecer .5s cubic-bezier(.3,1.6,.6,1) both; }
+  .estrellas span.apagada { filter: grayscale(1); opacity: .25; }
+  @keyframes aparecer { from { transform: scale(0) rotate(-90deg); } to { transform: scale(1) rotate(0); } }
+  .resumen { font-size: 24px; font-weight: 600; margin: 0; }
+  .subida { background: var(--amarillo); border-radius: var(--radio); padding: 12px 20px; font-size: 22px; font-weight: 800; margin: 0; }
+
+  /* Tienda */
+  #tienda { gap: 12px; text-align: center; }
+  #tienda .barra-arriba { justify-content: space-between; }
+  .estantes {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px;
+    width: 100%; overflow-y: auto; padding: 4px 4px 10px;
+  }
+  .articulo {
+    background: var(--tarjeta); border-radius: 18px; box-shadow: var(--sombra);
+    padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    border: 3px solid transparent;
+  }
+  .articulo .dibujo { font-size: 40px; line-height: 1.1; }
+  .articulo .precio { font-weight: 800; font-size: 17px; }
+  .articulo.puesto { border-color: var(--verde); }
+  .articulo.caro .precio { color: var(--tinta-suave); }
+  .mensaje-tienda { min-height: 1.4em; font-weight: 600; color: var(--tinta-suave); margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- Inicio -->
+<main id="inicio" class="pantalla">
+  <h1>El monstruito hambriento<small>Dale de comer con las tablas</small></h1>
+  <div class="monstruo" id="monstruo-inicio" data-pose="normal">
+    <div class="sombra"></div>
+    <div class="rebote"><div class="accion"><img alt="El monstruito"><span class="sombrero"></span></div></div>
+    <div class="globo"></div>
+  </div>
+  <label class="campo">¿Cómo se llama tu monstruito?
+    <input id="nombre" maxlength="14" autocomplete="off" spellcheck="false">
+  </label>
+  <div>
+    <div class="modos" role="group" aria-label="Qué tablas jugar">
+      <button id="modo-auto" aria-pressed="true">Sube solo</button>
+      <button id="modo-manual" aria-pressed="false">Elijo yo</button>
+    </div>
+    <p class="nota" id="nota-nivel"></p>
+    <div class="tablas" id="tablas" hidden></div>
+  </div>
+  <div class="fila">
+    <button class="boton" id="jugar">¡A comer!</button>
+  </div>
+  <div class="fila">
+    <button class="boton secundario" id="ir-tienda">🎩 Tienda · <span class="monedas-texto">0</span> 🪙</button>
+    <button class="icono" id="sonido-inicio" aria-label="Sonido">🔊</button>
+  </div>
+  <span class="version" id="version">v1.0.0</span>
+</main>
+
+<!-- Juego -->
+<main id="juego" class="pantalla" hidden>
+  <div class="barra-arriba">
+    <button class="icono" id="salir" aria-label="Volver al inicio">🏠</button>
+    <div class="panza" aria-label="Pancita">
+      <span aria-hidden="true">🍽️</span>
+      <div class="panza-medidor"><div class="panza-relleno" id="panza"></div></div>
+    </div>
+    <div class="monedas" id="monedas">🪙 <span class="monedas-texto">0</span></div>
+    <button class="icono" id="sonido-juego" aria-label="Sonido">🔊</button>
+  </div>
+  <div class="cuenta" id="cuenta" role="button" aria-label="Escuchar la cuenta">
+    <span id="cuenta-texto">2 × 3 =</span> <span class="resultado" id="cuenta-resultado">?</span>
+    <span class="oir" aria-hidden="true">🔈</span>
+  </div>
+  <div class="puntos" id="puntos"></div>
+  <div class="escenario">
+    <div class="monstruo" id="monstruo-juego" data-pose="normal">
+      <div class="sombra"></div>
+      <div class="rebote"><div class="accion"><img alt="El monstruito"><span class="sombrero"></span></div></div>
+      <div class="globo"></div>
+    </div>
+  </div>
+  <div class="comidas" id="comidas"></div>
+</main>
+
+<!-- Fin de ronda -->
+<main id="fin" class="pantalla" hidden>
+  <div class="estrellas" id="estrellas"></div>
+  <div class="monstruo" id="monstruo-fin" data-pose="panzon">
+    <div class="sombra"></div>
+    <div class="rebote"><div class="accion"><img alt="El monstruito"><span class="sombrero"></span></div></div>
+    <div class="globo"></div>
+  </div>
+  <p class="resumen" id="resumen"></p>
+  <p class="subida" id="subida" hidden></p>
+  <div class="fila">
+    <button class="boton" id="otra">Otra ronda</button>
+  </div>
+  <div class="fila">
+    <button class="boton secundario" id="fin-tienda">🎩 Tienda</button>
+    <button class="boton secundario" id="fin-inicio">🏠 Inicio</button>
+  </div>
+</main>
+
+<!-- Tienda -->
+<main id="tienda" class="pantalla" hidden>
+  <div class="barra-arriba">
+    <button class="icono" id="tienda-volver" aria-label="Volver">⬅️</button>
+    <h1 style="font-size:28px">Tienda</h1>
+    <div class="monedas">🪙 <span class="monedas-texto">0</span></div>
+  </div>
+  <div class="monstruo" id="monstruo-tienda" data-pose="normal">
+    <div class="sombra"></div>
+    <div class="rebote"><div class="accion"><img alt="El monstruito"><span class="sombrero"></span></div></div>
+    <div class="globo"></div>
+  </div>
+  <p class="mensaje-tienda" id="mensaje-tienda">Tocá un sombrero para probártelo.</p>
+  <div class="estantes" id="estantes"></div>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Datos guardados ----------
+  const CLAVE = 'monstruito-hambriento';
+  const INICIAL = {
+    nombre: 'Moco', monedas: 0, nivel: 3, modo: 'auto', tablas: [2],
+    sombreros: [], sombrero: null, repasar: [], sonido: true, panza: 55
+  };
+  let datos = cargar();
+  function cargar() {
+    try {
+      const texto = localStorage.getItem(CLAVE);
+      if (texto) return Object.assign({}, INICIAL, JSON.parse(texto));
+    } catch (e) {}
+    return JSON.parse(JSON.stringify(INICIAL));
+  }
+  function guardar() {
+    try { localStorage.setItem(CLAVE, JSON.stringify(datos)); } catch (e) {}
+  }
+
+  const POSES = {
+    normal: 'img/moco-normal.png',
+    panzon: 'img/moco-panzon.png',
+    flaquito: 'img/moco-flaquito.png'
+  };
+  Object.values(POSES).forEach(src => { const i = new Image(); i.src = src; });
+  // Dónde está la boca en cada pose (fracción del ancho y alto de la imagen)
+  const BOCA = { normal: [.51, .45], panzon: [.51, .35], flaquito: [.51, .39] };
+
+  const SOMBREROS = [
+    { id: 'flor', dibujo: '🌸', nombre: 'Flor', precio: 15 },
+    { id: 'mono', dibujo: '🎀', nombre: 'Moño', precio: 20 },
+    { id: 'gorra', dibujo: '🧢', nombre: 'Gorra', precio: 30 },
+    { id: 'casco', dibujo: '⛑️', nombre: 'Casco', precio: 40 },
+    { id: 'galera', dibujo: '🎩', nombre: 'Galera', precio: 50 },
+    { id: 'birrete', dibujo: '🎓', nombre: 'Birrete', precio: 60 },
+    { id: 'hongo', dibujo: '🍄', nombre: 'Hongo', precio: 70 },
+    { id: 'corona', dibujo: '👑', nombre: 'Corona', precio: 90 }
+  ];
+  const BOCADOS = ['🍪', '🍎', '🍩', '🍕', '🧁', '🍓', '🍌', '🥕', '🍉', '🍔'];
+
+  const $ = id => document.getElementById(id);
+  const azar = n => Math.floor(Math.random() * n);
+  const mezclar = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = azar(i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+  const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---------- Sonido ----------
+  let ac = null;
+  function audio() {
+    if (!datos.sonido) return null;
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tono(f, ini, dur, tipo = 'sine', vol = .2, fFin) {
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + ini;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = tipo;
+    o.frequency.setValueAtTime(f, t);
+    if (fFin) o.frequency.exponentialRampToValueAtTime(fFin, t + dur);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(a.destination);
+    o.start(t); o.stop(t + dur + .05);
+  }
+  function ruido(ini, dur, vol, corte) {
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + ini;
+    const buf = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = buf; f.type = 'lowpass'; f.frequency.value = corte;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(f).connect(g).connect(a.destination);
+    s.start(t);
+  }
+  const sonar = {
+    nam() { tono(220, 0, .12, 'triangle', .3, 150); tono(260, .16, .12, 'triangle', .3, 170); tono(200, .32, .2, 'triangle', .3, 110); },
+    puaj() { tono(320, 0, .4, 'sawtooth', .1, 80); ruido(.05, .35, .2, 1800); },
+    grrr() { for (let i = 0; i < 6; i++) tono(i % 2 ? 62 : 74, i * .08, .11, 'sawtooth', .14); ruido(0, .5, .08, 250); },
+    moneda() { tono(988, 0, .08, 'square', .06); tono(1319, .08, .25, 'square', .06); },
+    fanfarria() { [523, 659, 784, 1047].forEach((f, i) => tono(f, i * .13, i === 3 ? .5 : .2, 'triangle', .2)); },
+    eructo() { tono(120, 0, .55, 'sawtooth', .16, 70); ruido(0, .5, .1, 350); },
+    risa() { [700, 820, 700, 880].forEach((f, i) => tono(f, i * .09, .08, 'sine', .15)); },
+    toque() { tono(600, 0, .07, 'sine', .12, 900); }
+  };
+
+  // Lee la cuenta en voz alta (ayuda si cuesta leer)
+  let vozEs = null;
+  function buscarVoz() {
+    if (!('speechSynthesis' in window)) return;
+    const voces = speechSynthesis.getVoices();
+    vozEs = voces.find(v => /^es[-_]AR/i.test(v.lang)) || voces.find(v => /^es/i.test(v.lang)) || null;
+  }
+  if ('speechSynthesis' in window) { buscarVoz(); speechSynthesis.onvoiceschanged = buscarVoz; }
+  function decir(texto) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = vozEs ? vozEs.lang : 'es-AR';
+    if (vozEs) u.voice = vozEs;
+    u.rate = .85;
+    speechSynthesis.speak(u);
+  }
+
+  function pintarSonido() {
+    ['sonido-inicio', 'sonido-juego'].forEach(id => { $(id).textContent = datos.sonido ? '🔊' : '🔇'; });
+  }
+  function alternarSonido() { datos.sonido = !datos.sonido; guardar(); pintarSonido(); sonar.toque(); }
+
+  // ---------- Monstruo ----------
+  function pintarMonstruo(el, pose) {
+    el.dataset.pose = pose;
+    const img = el.querySelector('img');
+    if (!img.src.endsWith(POSES[pose])) img.src = POSES[pose];
+    const s = SOMBREROS.find(x => x.id === datos.sombrero);
+    el.querySelector('.sombrero').textContent = s ? s.dibujo : '';
+  }
+  function animar(el, clase) {
+    const a = el.querySelector('.accion');
+    a.classList.remove('comer', 'saltar', 'sacudir', 'reir');
+    void a.offsetWidth;
+    a.classList.add(clase);
+  }
+  const timersGlobo = new WeakMap();
+  function globo(el, texto, ms = 1100) {
+    const g = el.querySelector('.globo');
+    g.textContent = texto;
+    g.classList.add('ver');
+    clearTimeout(timersGlobo.get(g));
+    timersGlobo.set(g, setTimeout(() => g.classList.remove('ver'), ms));
+  }
+  function poseSegunPanza() {
+    if (datos.panza >= 70) return 'panzon';
+    if (datos.panza <= 30) return 'flaquito';
+    return 'normal';
+  }
+
+  let ultimaComida = 0;
+  function tocarMonstruo(el) {
+    if (Date.now() - ultimaComida < 6000) {
+      ultimaComida = 0;
+      animar(el, 'sacudir'); globo(el, '¡BUAAAJ!'); sonar.eructo();
+    } else if (el.dataset.pose === 'flaquito') {
+      animar(el, 'sacudir'); globo(el, 'grrr… ¡hambre!'); sonar.grrr();
+    } else {
+      animar(el, 'reir'); globo(el, '¡jiji!'); sonar.risa();
+    }
+  }
+  document.querySelectorAll('.monstruo').forEach(el => el.addEventListener('click', () => tocarMonstruo(el)));
+
+  // ---------- Pantallas ----------
+  function mostrar(id) {
+    document.querySelectorAll('.pantalla').forEach(p => { p.hidden = p.id !== id; });
+    document.querySelectorAll('.monedas-texto').forEach(m => { m.textContent = datos.monedas; });
+  }
+
+  // ---------- Inicio ----------
+  function pintarInicio() {
+    $('nombre').value = datos.nombre;
+    $('modo-auto').setAttribute('aria-pressed', datos.modo === 'auto');
+    $('modo-manual').setAttribute('aria-pressed', datos.modo === 'manual');
+    $('tablas').hidden = datos.modo !== 'manual';
+    $('nota-nivel').textContent = datos.modo === 'auto'
+      ? `Ahora: tablas hasta la del ${datos.nivel}. Si acertás 8 de 10, sube sola.`
+      : 'Tocá las tablas que querés practicar.';
+    const cont = $('tablas');
+    cont.innerHTML = '';
+    for (let t = 1; t <= 10; t++) {
+      const b = document.createElement('button');
+      b.textContent = t;
+      b.setAttribute('aria-pressed', datos.tablas.includes(t));
+      b.setAttribute('aria-label', `Tabla del ${t}`);
+      b.addEventListener('click', () => {
+        sonar.toque();
+        if (datos.tablas.includes(t)) {
+          if (datos.tablas.length > 1) datos.tablas = datos.tablas.filter(x => x !== t);
+        } else datos.tablas.push(t);
+        guardar(); pintarInicio();
+      });
+      cont.appendChild(b);
+    }
+    pintarMonstruo($('monstruo-inicio'), 'normal');
+    mostrar('inicio');
+  }
+  $('nombre').addEventListener('input', e => {
+    datos.nombre = e.target.value.trim() || 'Moco';
+    guardar();
+  });
+  $('modo-auto').addEventListener('click', () => { sonar.toque(); datos.modo = 'auto'; guardar(); pintarInicio(); });
+  $('modo-manual').addEventListener('click', () => { sonar.toque(); datos.modo = 'manual'; guardar(); pintarInicio(); });
+  $('jugar').addEventListener('click', () => { sonar.toque(); empezarRonda(); });
+  $('ir-tienda').addEventListener('click', () => { sonar.toque(); abrirTienda('inicio'); });
+  $('sonido-inicio').addEventListener('click', alternarSonido);
+  $('sonido-juego').addEventListener('click', alternarSonido);
+
+  // ---------- Ronda ----------
+  const POR_RONDA = 10;
+  let ronda = null;
+
+  function tablasDeLaRonda() {
+    if (datos.modo === 'manual') return datos.tablas.slice();
+    const t = [];
+    for (let i = 1; i <= datos.nivel; i++) t.push(i);
+    return t;
+  }
+  function elegirTabla(tablas) {
+    // En modo automático la tabla nueva sale más seguido y la del 1 casi nunca
+    if (datos.modo === 'auto' && tablas.length > 1 && Math.random() < .4) return datos.nivel;
+    const pocas = tablas.filter(t => t !== 1);
+    if (pocas.length && Math.random() < .85) return pocas[azar(pocas.length)];
+    return tablas[azar(tablas.length)];
+  }
+  function armarPreguntas() {
+    const tablas = tablasDeLaRonda();
+    const lista = [];
+    const usadas = new Set();
+    // Primero las que quedaron para repasar de rondas anteriores
+    const repaso = datos.repasar.filter(p => tablas.includes(p.a)).slice(0, 3);
+    datos.repasar = datos.repasar.filter(p => !repaso.includes(p));
+    repaso.forEach(p => { lista.push({ a: p.a, b: p.b, repaso: true }); usadas.add(p.a + 'x' + p.b); });
+    let intentos = 0;
+    while (lista.length < POR_RONDA && intentos++ < 500) {
+      const a = elegirTabla(tablas), b = 1 + azar(10);
+      const clave = a + 'x' + b;
+      if (usadas.has(clave) && intentos < 300) continue;
+      usadas.add(clave);
+      lista.push({ a, b });
+    }
+    return mezclar(lista);
+  }
+  function opciones(a, b) {
+    const r = a * b;
+    const cuantas = (datos.modo === 'auto' ? datos.nivel : Math.max(...datos.tablas)) >= 5 ? 4 : 3;
+    const cand = new Set();
+    const sumar = v => { if (v > 0 && v !== r && v <= 100) cand.add(v); };
+    [a * (b + 1), a * (b - 1), (a + 1) * b, (a - 1) * b, r + 1, r - 1, r + 2, r - 2, r + 10, r - 10].forEach(sumar);
+    if (r >= 12) sumar(+String(r).split('').reverse().join(''));
+    let k = 3;
+    while (cand.size < cuantas - 1) sumar(r + k++);
+    const otras = mezclar([...cand]).slice(0, cuantas - 1);
+    return mezclar([r, ...otras]);
+  }
+
+  function empezarRonda() {
+    if (datos.panza < 45) datos.panza = 45;
+    ronda = { preguntas: armarPreguntas(), i: 0, aciertos: 0, monedas: 0, bloqueado: false };
+    guardar();
+    mostrar('juego');
+    actualizarPanza(false);
+    pintarMonstruo($('monstruo-juego'), poseSegunPanza());
+    globo($('monstruo-juego'), `¡Tengo hambre!`, 1400);
+    mostrarPregunta();
+  }
+
+  function pintarPuntos() {
+    const cont = $('puntos');
+    cont.innerHTML = '';
+    ronda.preguntas.forEach((p, i) => {
+      const s = document.createElement('span');
+      if (i < ronda.i) s.className = p.fallo ? 'repaso' : 'hecho';
+      else if (i === ronda.i) s.className = 'actual';
+      cont.appendChild(s);
+    });
+  }
+
+  function mostrarPregunta() {
+    const p = ronda.preguntas[ronda.i];
+    $('cuenta-texto').textContent = `${p.a} × ${p.b} =`;
+    $('cuenta-resultado').textContent = '?';
+    $('cuenta').classList.remove('bien');
+    pintarPuntos();
+    const cont = $('comidas');
+    cont.innerHTML = '';
+    const bocados = mezclar(BOCADOS.slice());
+    opciones(p.a, p.b).forEach((v, i) => {
+      const b = document.createElement('button');
+      b.className = 'comida';
+      b.innerHTML = `<span class="bocado">${bocados[i]}</span><span class="numero">${v}</span>`;
+      b.setAttribute('aria-label', String(v));
+      b.addEventListener('click', () => elegir(b, v));
+      cont.appendChild(b);
+    });
+    ronda.bloqueado = false;
+  }
+
+  $('cuenta').addEventListener('click', () => {
+    if (!ronda) return;
+    const p = ronda.preguntas[ronda.i];
+    decir(`${p.a} por ${p.b}`);
+  });
+
+  function puntoBoca() {
+    const el = $('monstruo-juego');
+    const r = el.getBoundingClientRect();
+    const [fx, fy] = BOCA[el.dataset.pose];
+    return [r.left + r.width * fx, r.top + r.height * fy];
+  }
+
+  function volarHastaBoca(boton) {
+    const r = boton.getBoundingClientRect();
+    const v = document.createElement('div');
+    v.className = 'volando';
+    v.innerHTML = boton.innerHTML;
+    document.body.appendChild(v);
+    const x0 = r.left + r.width / 2, y0 = r.top + r.height / 2;
+    v.style.left = x0 + 'px';
+    v.style.top = y0 + 'px';
+    const [x1, y1] = puntoBoca();
+    const dx = x1 - x0, dy = y1 - y0;
+    boton.classList.add('usada');
+    const anim = v.animate([
+      { transform: 'translate(-50%, -50%) scale(1)' },
+      { transform: `translate(calc(-50% + ${dx * .5}px), calc(-50% + ${dy * .5 - 70}px)) scale(1.15)`, offset: .5 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.35)` }
+    ], { duration: 520, easing: 'ease-in', fill: 'forwards' });
+    return anim.finished.then(() => {
+      // Queda apoyada en la boca para poder escupirla desde ahí
+      v.style.left = x1 + 'px';
+      v.style.top = y1 + 'px';
+      v.style.transform = 'translate(-50%, -50%) scale(.35)';
+      anim.cancel();
+      return v;
+    });
+  }
+
+  function escupir(v) {
+    const lado = Math.random() < .5 ? -1 : 1;
+    const anim = v.animate([
+      { transform: 'translate(-50%, -50%) scale(.35)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${lado * 140}px), calc(-50% - 60px)) scale(.9) rotate(${lado * 200}deg)`, opacity: .9, offset: .45 },
+      { transform: `translate(calc(-50% + ${lado * 220}px), calc(-50% + 280px)) scale(.7) rotate(${lado * 420}deg)`, opacity: 0 }
+    ], { duration: 750, easing: 'ease-out', fill: 'forwards' });
+    anim.finished.then(() => v.remove());
+  }
+
+  function flotante(texto, el) {
+    const r = el.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'flotante';
+    f.textContent = texto;
+    f.style.left = (r.left + r.width / 2 - 20) + 'px';
+    f.style.top = (r.bottom + 4) + 'px';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1000);
+  }
+
+  function actualizarPanza(conPose = true) {
+    datos.panza = Math.max(8, Math.min(100, datos.panza));
+    $('panza').style.width = datos.panza + '%';
+    $('panza').classList.toggle('baja', datos.panza <= 30);
+    if (!conPose) return;
+    const el = $('monstruo-juego');
+    const antes = el.dataset.pose;
+    const ahora = poseSegunPanza();
+    if (antes !== ahora) pintarMonstruo(el, ahora);
+    return ahora !== antes ? ahora : null;
+  }
+
+  function sumarMonedas(n) {
+    datos.monedas += n;
+    ronda.monedas += n;
+    document.querySelectorAll('.monedas-texto').forEach(m => { m.textContent = datos.monedas; });
+    const m = $('monedas');
+    m.classList.remove('brillo'); void m.offsetWidth; m.classList.add('brillo');
+    flotante(`+${n}`, m);
+    sonar.moneda();
+  }
+
+  async function elegir(boton, valor) {
+    if (ronda.bloqueado) return;
+    ronda.bloqueado = true;
+    const p = ronda.preguntas[ronda.i];
+    const bien = valor === p.a * p.b;
+    const mon = $('monstruo-juego');
+    sonar.toque();
+    const v = await volarHastaBoca(boton);
+
+    if (bien) {
+      v.remove();
+      ultimaComida = Date.now();
+      animar(mon, 'comer');
+      sonar.nam();
+      globo(mon, '¡Ñam!');
+      $('cuenta-resultado').textContent = p.a * p.b;
+      $('cuenta').classList.add('bien');
+      if (!p.fallo) { ronda.aciertos++; datos.panza += 13; }
+      else datos.panza += 5;
+      const cambio = actualizarPanza();
+      await esperar(450);
+      animar(mon, 'saltar');
+      if (cambio === 'panzon') globo(mon, '¡Qué rico!', 1200);
+      sumarMonedas(p.fallo ? 1 : 3);
+      guardar();
+      await esperar(1050);
+      siguiente();
+    } else {
+      animar(mon, 'sacudir');
+      sonar.puaj();
+      globo(mon, '¡Puaj!');
+      escupir(v);
+      boton.classList.remove('usada');
+      boton.classList.add('mal');
+      if (!p.fallo) {
+        p.fallo = true;
+        datos.panza -= 15;
+        // La cuenta fallada vuelve a salir pronto
+        const destino = ronda.i + 3;
+        if (destino < ronda.preguntas.length) ronda.preguntas.splice(destino, 1, { a: p.a, b: p.b, repaso: true });
+        else datos.repasar.push({ a: p.a, b: p.b });
+      }
+      const cambio = actualizarPanza();
+      guardar();
+      await esperar(700);
+      if (cambio === 'flaquito' || mon.dataset.pose === 'flaquito') {
+        sonar.grrr();
+        globo(mon, 'grrr… ¡probá otra!', 1300);
+      } else {
+        globo(mon, '¡Probá otra!', 1100);
+      }
+      ronda.bloqueado = false;
+    }
+  }
+
+  function siguiente() {
+    ronda.i++;
+    if (ronda.i >= ronda.preguntas.length) terminarRonda();
+    else mostrarPregunta();
+  }
+
+  // ---------- Fin de ronda ----------
+  function terminarRonda() {
+    const a = ronda.aciertos;
+    const estrellas = a >= 9 ? 3 : a >= 7 ? 2 : 1;
+    const premio = estrellas * 5;
+    datos.monedas += premio;
+    let subio = false;
+    if (datos.modo === 'auto' && a >= 8 && datos.nivel < 10) { datos.nivel++; subio = true; }
+    guardar();
+
+    const cont = $('estrellas');
+    cont.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const s = document.createElement('span');
+      s.textContent = '⭐';
+      s.style.animationDelay = (i * .25) + 's';
+      if (i >= estrellas) s.className = 'apagada';
+      cont.appendChild(s);
+    }
+    $('resumen').textContent = `${datos.nombre} comió ${a} de ${POR_RONDA} a la primera. Ganaste ${ronda.monedas + premio} 🪙`;
+    $('subida').hidden = !subio;
+    if (subio) $('subida').textContent = `¡Subiste! Ahora llegás hasta la tabla del ${datos.nivel} 🎉`;
+    const mon = $('monstruo-fin');
+    pintarMonstruo(mon, estrellas >= 2 ? 'panzon' : 'normal');
+    mostrar('fin');
+    sonar.fanfarria();
+    setTimeout(() => { animar(mon, 'saltar'); globo(mon, estrellas === 3 ? '¡Estoy llenito!' : '¡Gracias!', 1800); }, 400);
+    ronda = null;
+  }
+  $('otra').addEventListener('click', () => { sonar.toque(); empezarRonda(); });
+  $('fin-inicio').addEventListener('click', () => { sonar.toque(); pintarInicio(); });
+  $('fin-tienda').addEventListener('click', () => { sonar.toque(); abrirTienda('fin'); });
+  $('salir').addEventListener('click', () => { sonar.toque(); ronda = null; pintarInicio(); });
+
+  // ---------- Tienda ----------
+  let volverA = 'inicio';
+  function abrirTienda(desde) {
+    volverA = desde;
+    $('mensaje-tienda').textContent = 'Tocá un sombrero para comprarlo o ponérselo.';
+    pintarTienda();
+    mostrar('tienda');
+  }
+  function pintarTienda() {
+    pintarMonstruo($('monstruo-tienda'), 'normal');
+    const cont = $('estantes');
+    cont.innerHTML = '';
+    SOMBREROS.forEach(s => {
+      const tiene = datos.sombreros.includes(s.id);
+      const b = document.createElement('button');
+      b.className = 'articulo';
+      if (datos.sombrero === s.id) b.classList.add('puesto');
+      if (!tiene && datos.monedas < s.precio) b.classList.add('caro');
+      b.innerHTML = `<span class="dibujo">${s.dibujo}</span><span>${s.nombre}</span>` +
+        `<span class="precio">${tiene ? (datos.sombrero === s.id ? 'Puesto' : 'Es tuyo') : s.precio + ' 🪙'}</span>`;
+      b.addEventListener('click', () => tocarArticulo(s));
+      cont.appendChild(b);
+    });
+    document.querySelectorAll('.monedas-texto').forEach(m => { m.textContent = datos.monedas; });
+  }
+  function tocarArticulo(s) {
+    const mon = $('monstruo-tienda');
+    if (datos.sombreros.includes(s.id)) {
+      datos.sombrero = datos.sombrero === s.id ? null : s.id;
+      sonar.toque();
+      $('mensaje-tienda').textContent = datos.sombrero ? `¡${datos.nombre} se puso ${s.nombre.toLowerCase() === 'flor' ? 'la flor' : 'el sombrero'}!` : 'Sin sombrero.';
+    } else if (datos.monedas >= s.precio) {
+      datos.monedas -= s.precio;
+      datos.sombreros.push(s.id);
+      datos.sombrero = s.id;
+      sonar.fanfarria();
+      $('mensaje-tienda').textContent = `¡Compraste: ${s.nombre}!`;
+    } else {
+      sonar.toque();
+      $('mensaje-tienda').textContent = `Te faltan ${s.precio - datos.monedas} 🪙. ¡Jugá otra ronda!`;
+      return;
+    }
+    guardar();
+    pintarTienda();
+    animar(mon, 'saltar');
+    if (datos.sombrero) globo(mon, '¡Me queda bien!', 1300);
+  }
+  $('tienda-volver').addEventListener('click', () => {
+    sonar.toque();
+    if (volverA === 'fin') mostrar('fin'); else pintarInicio();
+  });
+
+  // ---------- Arranque ----------
+  pintarSonido();
+  pintarInicio();
+})();
+</script>
+</body>
+</html>
